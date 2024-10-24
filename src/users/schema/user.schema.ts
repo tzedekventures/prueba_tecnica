@@ -23,12 +23,6 @@ export class User extends Document
 
     @Prop({ enum: UserRole, default: UserRole.USER })
     public role: UserRole
-
-    @Prop({ default: true })
-    public isActive: boolean
-
-    @Prop({ default: false })
-    public deletionRequested: boolean
 }
 
 export const UserSchema = SchemaFactory.createForClass(User)
