@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
-import { DeletionRequestsService } from './deletion-requests.service'
 import { DeletionRequest, DeletionRequestSchema } from './schema/deletion-request.schema'
 import { BullModule } from '@nestjs/bullmq'
 import { ConfigModule, ConfigService } from '@nestjs/config'
+import { DeletionRequestsService } from './deletion-requests.service'
+import { DeletionRequestProcessor } from './deletion-request.processor'
 
 
 @Module({
@@ -20,7 +21,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
             }),
             inject: [ConfigService],
         }),
+        BullModule.registerQueue({
+            name: 'deletionQueue',
+        }),
     ],
-    providers: [DeletionRequestsService],
+    providers: [
+        DeletionRequestsService,
+        DeletionRequestProcessor,
+    ],
+    exports: [DeletionRequestsService],
 })
 export class DeletionRequestsModule { }

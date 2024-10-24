@@ -1,23 +1,41 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import * as bcrypt from 'bcrypt'
+import { Model } from 'mongoose'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { InjectModel } from '@nestjs/mongoose'
-import { User, UserDocument } from './schema/user.schema'
-import { Model } from 'mongoose'
+import { User, UserDocument, UserRole } from './schema/user.schema'
 import { Res } from 'src/common/lib/res'
 import { ListDto } from 'src/common/dto/list.dto'
+import { DeletionRequestsService } from 'src/deletion-requests/deletion-requests.service'
 
 
 @Injectable()
 export class UsersService
 {
-    constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+    constructor(
+        @InjectModel(User.name) private userModel: Model<UserDocument>,
+        private readonly deletionRequestsService: DeletionRequestsService,
+    ) { }
 
 
     public async create(createUserDto: CreateUserDto)
     {
-        const profile = new this.userModel(createUserDto)
-        return await profile.save()
+        const userExists = await this.userModel.findOne({
+            email: createUserDto.email
+        })
+
+        if (userExists)
+            throw new BadRequestException('User already exists')
+
+        const user = new this.userModel({
+            ...createUserDto,
+            password: await bcrypt.hash(createUserDto.password, 10)
+        })
+
+        await user.save()
+
+        return { ...createUserDto, password: null, _id: user._id }
     }
 
 
@@ -27,10 +45,9 @@ export class UsersService
 
         const data = await this.userModel
             .find()
+            .select('-password')
             .skip((page - 1) * limit)
             .limit(limit)
-            .populate('author')
-            .populate('tags')
             .exec()
 
         const count = await this.userModel
@@ -54,31 +71,58 @@ export class UsersService
     }
 
 
-    public async update(id: string, updateUserDto: UpdateUserDto)
+    public async update(id: string, updateUserDto: UpdateUserDto, user: User)
     {
-        const user = await this
+        const usuario = await this
             .userModel
             .findByIdAndUpdate(id, updateUserDto, { new: true })
             .exec()
 
-        if (!user)
+        if (!usuario)
         {
-            throw new NotFoundException(`user with id ${id} not found`)
+            throw new NotFoundException(`usuario with id ${id} not found`)
         }
 
         return user
     }
 
 
-    public async remove(id: string)
+    public async remove(id: string, user: User)
     {
-        const result = await this.userModel.findByIdAndDelete(id).exec()
+        console.log(user)
+
+        const result = await this.userModel.findById(id).exec()
 
         if (!result)
         {
             throw new NotFoundException(`user with id ${id} not found`)
         }
 
-        return result
+        if (result.role === UserRole.ADMIN && user._id != result._id)
+            throw new BadRequestException('No puedes eliminar un administrador que no seas tu mismo')
+
+        if (user._id != result._id)
+            throw new BadRequestException('No puedes eliminar un usuario que no seas tu mismo')
+
+        if (result.role === UserRole.USER)
+        {
+            const existingRequest = await this.deletionRequestsService.findByUserId(id)
+
+            if (existingRequest && !existingRequest.processed)
+            {
+                throw new BadRequestException('Ya existe una solicitud de eliminación para este usuario')
+            }
+
+            await this.deletionRequestsService.requestDeletion(id)
+
+            return { message: 'Solicitud de eliminación creada exitosamente' }
+        }
+        // nota: si el usuario es administrador simplemente lo voy a eliminar en este ejemplo, y su sesion se cerrara
+        else if (result.role === UserRole.ADMIN)
+        {
+            const deleteResult = await this.userModel.deleteOne({ _id: id }).exec()
+
+            return deleteResult
+        }
     }
 }

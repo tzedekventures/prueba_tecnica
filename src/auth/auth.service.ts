@@ -34,14 +34,24 @@ export class AuthService
         delete usuario.password
 
         return {
-            ...usuario,
+            _id: usuario._id.toString(),
+            username: usuario.username,
+            email: usuario.email,
+            role: usuario.role,
+
             token: this.generateJwt({
                 username: usuario.username,
                 email: usuario.email,
                 role: usuario.role,
-                _id: usuario._id as string,
+                _id: usuario._id.toString(),
             })
         }
+    }
+
+
+    public async validateUser(id): Promise<User>
+    {
+        return await this.connection.model(User.name).findById(id).select('-password').exec()
     }
 
 
