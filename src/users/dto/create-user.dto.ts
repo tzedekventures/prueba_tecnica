@@ -7,7 +7,7 @@ export class CreateUserDto
     @IsString()
     @IsNotEmpty({ message: 'El nombre de usuario es requerido' })
     @MinLength(4, { message: 'El nombre de usuario debe tener al menos 4 caracteres' })
-    @MaxLength(20, { message: 'El nombre de usuario no debe exceder 20 caracteres' })
+    @MaxLength(100, { message: 'El nombre de usuario no debe exceder 20 caracteres' })
     public readonly username: string
 
     @IsEmail({}, { message: 'Debe proporcionar un correo electrónico válido' })
@@ -17,7 +17,7 @@ export class CreateUserDto
     @IsString()
     @IsNotEmpty({ message: 'La contraseña es requerida' })
     @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
-    @MaxLength(20, { message: 'La contraseña no debe exceder 20 caracteres' })
+    @MaxLength(100, { message: 'La contraseña no debe exceder 20 caracteres' })
     public password: string
 
     @IsString()

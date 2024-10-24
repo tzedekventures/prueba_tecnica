@@ -12,7 +12,7 @@ export enum UserRole
 @Schema({ timestamps: true })
 export class User extends Document
 {
-    @Prop({ required: true, unique: true })
+    @Prop({ required: true })
     public username: string
 
     @Prop({ required: true, unique: true })
